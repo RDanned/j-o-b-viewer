@@ -1,103 +1,165 @@
-import Image from "next/image";
+import Image from 'next/image';
+import blockfrostAPI from '@/app/lib/api/blockfrost';
+import { components } from '@blockfrost/openapi';
+import { Card } from 'antd';
+import { convertLovelaceToAda, convertLovelaceToUSD, shortenString } from '@/app/lib/helpers/crypto';
+import adaIcon from '@/app/lib/assets/img/currency/ada.svg';
+import { DetailedTransaction } from '@/app/lib/types/crypto';
+import TransactionList from '@/app/lib/components/TransactionList';
 
-export default function Home() {
+export default async function Home() {
+  const walletAddress = process.env.WALLET_ADDRESS || '';
+  let address: components['schemas']['address_content'] | null = null;
+  let account: components['schemas']['account_content'] | null = null;
+  let assets: Array<components['schemas']['asset']> = [];
+  let transactions: DetailedTransaction[] = [];
+  let balanceTotalADA = 0;
+  let balanceTotalUSD = 0;
+
+  try {
+    address = await blockfrostAPI.addresses(walletAddress);
+
+    const txList = await blockfrostAPI.addressesTransactions(walletAddress, {
+      order: 'desc',
+      count: 20,
+      page: 1,
+    });
+
+    const detailedTxs = await Promise.all(
+      txList.map(async (tx) => {
+        const details = await blockfrostAPI.txs(tx.tx_hash);
+        const utxos = await blockfrostAPI.txsUtxos(tx.tx_hash)
+          .then(async (utxos) => {
+            const formattedInputs = await Promise.all(utxos.inputs.map(async (input) => {
+              const formattedAmounts = await Promise.all(input.amount.map(async (amount) => {
+                if (amount.unit === 'lovelace') {
+                  return {
+                    ...amount,
+                    text: `${convertLovelaceToAda(Number(amount.quantity))} ADA`
+                  }
+                }
+                const assetData = await blockfrostAPI.assetsById(amount.unit);
+                return {
+                  ...amount,
+                  text: `${amount.quantity} ${assetData.onchain_metadata?.name
+                    ? assetData.onchain_metadata?.name as string : shortenString(String(assetData.asset_name))}`
+                }
+              }));
+              return {
+                ...input,
+                amount: formattedAmounts
+              }
+            }));
+
+            const formattedOutputs = await Promise.all(utxos.outputs.map(async (input) => {
+              const formattedAmounts = await Promise.all(input.amount.map(async (amount) => {
+                if (amount.unit === 'lovelace') {
+                  return {
+                    ...amount,
+                    text: `${convertLovelaceToAda(Number(amount.quantity))} ADA`
+                  }
+                }
+                const assetData = await blockfrostAPI.assetsById(amount.unit);
+                return {
+                  ...amount,
+                  text: `${amount.quantity} ${assetData.onchain_metadata?.name
+                    ? assetData.onchain_metadata?.name as string : shortenString(String(assetData.asset_name))}`
+                }
+              }));
+              return {
+                ...input,
+                amount: formattedAmounts
+              }
+            }));
+
+            return {
+              ...utxos,
+              inputs: formattedInputs,
+              outputs: formattedOutputs
+            }
+          });
+        return {...tx, details, utxos} as DetailedTransaction;
+      })
+    );
+
+    transactions = detailedTxs;
+
+    if (address.stake_address)
+      account = await blockfrostAPI.accounts(address.stake_address);
+
+    if (address.amount) {
+      assets = await Promise.all(
+        address.amount.map(async (asset) => {
+          try {
+            const assetData = await blockfrostAPI.assetsById(asset.unit);
+            return assetData;
+          } catch (e) {
+            if (asset.unit === 'lovelace') {
+              balanceTotalADA = convertLovelaceToAda(Number(asset.quantity))
+              balanceTotalUSD = await convertLovelaceToUSD(Number(asset.quantity));
+              return null;
+            }
+            return {
+              asset_name: 'Unknown',
+              asset: asset.quantity,
+              quantity: asset.quantity,
+            } as components['schemas']['asset'];
+          }
+        })
+      ).then((assets) => assets.filter((asset) => asset !== null));
+    }
+  } catch (error) {
+    console.error(error);
+  }
+
+  if (!address) {
+    return <div>Loading...</div>
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="pt-8">
+      <Card title="Address" className="address-info">
+        <div className="address-title">{address.address}</div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+        <div className="flex gap-4 w-full">
+
+          <div className="info-grid">
+            <Card className="balance-list">
+              <div className="balance-item">
+                <div className="balance-item__title">Balance</div>
+                <div className="balance-item__value">
+                  {balanceTotalADA.toFixed(2)}
+                  <Image
+                    priority
+                    src={adaIcon}
+                    alt="Follow us on Twitter"
+                  />
+                </div>
+              </div>
+              <div className="balance-item">
+                <div className="balance-item__title">Value</div>
+                <div className="balance-item__value">{balanceTotalUSD.toFixed(2)} $</div>
+              </div>
+            </Card>
+
+            <Card className="token-list">
+              <div className="token-list__title">Tokens</div>
+              {assets.map((asset) => (
+                <div className="token-item" key={asset.asset}>
+                  <div className="token-item__name">
+                    {asset.onchain_metadata?.name ? asset.onchain_metadata?.name as string : asset.asset_name}
+                  </div>
+                  <div className="token-item__value">
+                    {asset.quantity}
+                  </div>
+                </div>
+              ))}
+            </Card>
+
+            <TransactionList transactions={transactions}/>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </Card>
     </div>
   );
 }

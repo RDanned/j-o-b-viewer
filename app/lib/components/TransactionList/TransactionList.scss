@@ -1,0 +1,31 @@
+.transaction-list {
+  grid-area: main;
+
+  .ant-card-body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 80vh;
+  }
+
+  .transaction-list__title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+
+  .transaction-item__directions {
+    max-width: 100%;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+
+    .transaction-item__direction {
+      align-self: center;
+    }
+  }
+
+  .transaction-item__from,
+  .transaction-item__to {
+    width: 45%;
+  }
+}
