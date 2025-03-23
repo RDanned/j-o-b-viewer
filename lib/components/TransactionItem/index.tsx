@@ -1,5 +1,5 @@
-import { DetailedTransaction } from '@/app/lib/types/crypto';
-import { shortenString } from '@/app/lib/helpers/crypto';
+import { DetailedTransaction } from '@/lib/types/crypto';
+import { shortenString } from '@/lib/helpers/crypto';
 import { ArrowRightOutlined } from '@ant-design/icons';
 
 function TransactionItem({ transaction }: { transaction: DetailedTransaction }) {

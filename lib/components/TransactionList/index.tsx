@@ -1,7 +1,7 @@
 import { Card, Divider } from 'antd';
-import { DetailedTransaction } from '@/app/lib/types/crypto';
+import { DetailedTransaction } from '@/lib/types/crypto';
 import './TransactionList.scss';
-import TransactionItem from '@/app/lib/components/TransactionItem';
+import TransactionItem from '@/lib/components/TransactionItem';
 
 function TransactionList({transactions}: {transactions: DetailedTransaction[]}) {
   return (

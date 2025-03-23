@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 //import "./globals.css";
-import '@/app/lib/assets/style.scss';
+import '@/lib/assets/style.scss';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 
 

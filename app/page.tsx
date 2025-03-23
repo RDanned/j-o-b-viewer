@@ -1,11 +1,11 @@
 import Image from 'next/image';
-import blockfrostAPI from '@/app/lib/api/blockfrost';
 import { components } from '@blockfrost/openapi';
 import { Card } from 'antd';
-import { convertLovelaceToAda, convertLovelaceToUSD, shortenString } from '@/app/lib/helpers/crypto';
-import adaIcon from '@/app/lib/assets/img/currency/ada.svg';
-import { DetailedTransaction } from '@/app/lib/types/crypto';
-import TransactionList from '@/app/lib/components/TransactionList';
+import blockfrostAPI from '@/lib/api/blockfrost';
+import { convertLovelaceToAda, convertLovelaceToUSD, shortenString } from '@/lib/helpers/crypto';
+import adaIcon from '@/lib/assets/img/currency/ada.svg';
+import { DetailedTransaction } from '@/lib/types/crypto';
+import TransactionList from '@/lib/components/TransactionList';
 
 export default async function Home() {
   const walletAddress = process.env.WALLET_ADDRESS || '';
